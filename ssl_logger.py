@@ -76,8 +76,7 @@ def ssl_log(process, pcap=None, verbose=False, isUsb=False, ssllib="", isSpawn=T
     #   raise NotImplementedError("This function is only implemented for Linux and "
     #                             "macOS systems.")
 
-    def log_pcap(pcap_file, ssl_session_id, function, src_addr, src_port,
-                 dst_addr, dst_port, data):
+    def log_pcap(pcap_file, ssl_session_id, function, src_addr, src_port, dst_addr, dst_port, data):
         """Writes the captured data to a pcap file.
         Args:
           pcap_file: The opened pcap file.
@@ -90,6 +89,9 @@ def ssl_log(process, pcap=None, verbose=False, isUsb=False, ssllib="", isSpawn=T
           data: The decrypted packet data.
         """
         t = time.time()
+        print(" data len: {}".format(len(data)))
+        # if len(data) > 1440:
+        #     exit()
 
         if ssl_session_id not in ssl_sessions:
             ssl_sessions[ssl_session_id] = (random.randint(0, 0xFFFFFFFF),
@@ -102,12 +104,18 @@ def ssl_log(process, pcap=None, verbose=False, isUsb=False, ssllib="", isSpawn=T
             seq, ack = (client_sent, server_sent)
 
         for writes in (
-                # PCAP record (packet) header
+                # PCAP record (packet) header, size :  16
                 ("=I", int(t)),  # Timestamp seconds
                 ("=I", int((t * 1000000) % 1000000)),  # Timestamp microseconds
-                ("=I", 40 + len(data)),  # Number of octets saved
-                ("=i", 40 + len(data)),  # Actual length of packet
-                # IPv4 header
+                ("=I", 40 + 14 + len(data)),  # Number of octets saved
+                ("=i", 40 + 14 + len(data)),  # Actual length of packet
+                # Ethernet Header, size : 14
+                ("=I", 0),  # Destination MAC address
+                ("=H", 0),  #
+                ("=I", 0),  # Source MAC address
+                ("=H", 0),
+                ("=H", 8), # Ethernet Type
+                # IPv4 header, size :20
                 (">B", 0x45),  # Version and Header Length
                 (">B", 0),  # Type of Service
                 (">H", 40 + len(data)),  # Total Length
@@ -200,10 +208,12 @@ def ssl_log(process, pcap=None, verbose=False, isUsb=False, ssllib="", isSpawn=T
                 ("=I", 0xa1b2c3d4),  # Magic number
                 ("=H", 2),  # Major version number
                 ("=H", 4),  # Minor version number
-                ("=i", time.timezone),  # GMT to local correction
+                ("=i", 0),  # GMT to local correction
                 ("=I", 0),  # Accuracy of timestamps
-                ("=I", 65535),  # Max length of captured packets
-                ("=I", 228)):  # Data link type (LINKTYPE_IPV4)
+                # ("=I", 65535),  # Max length of captured packets
+                ("=I", 0x40000),  # Max length of captured packets
+                # ("=I", 228)):  # Data link type (LINKTYPE_IPV4: Raw IPv4; the packet begins with an IPv4 header.)
+                ("=I", 1)):  # Data link type (LINKTYPE_ETHERNET: DLT_EN10MB.)
             pcap_file.write(struct.pack(writes[0], writes[1]))
 
     with open("./script.js", encoding="utf-8") as f:
