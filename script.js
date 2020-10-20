@@ -96,6 +96,24 @@
     ntohl = new NativeFunction(addresses["ntohl"], "uint32", ["uint32"]);
   }
   initializeGlobals();
+
+  function ipToNumber(ip) {
+    var num = 0;
+    if(ip == "") {
+        return num;
+    }
+    var aNum = ip.split(".");
+    if(aNum.length != 4) {
+        return num;
+    }
+    num += parseInt(aNum[0]) << 0;
+    num += parseInt(aNum[1]) <<  8;
+    num += parseInt(aNum[2]) << 16;
+    num += parseInt(aNum[3]) << 24;
+    num = num >>> 0;//这个很关键，不然可能会出现负数的情况
+    return num;
+}
+
   /**
    * Returns a dictionary of a sockfd's "src_addr", "src_port", "dst_addr", and
    * "dst_port".
@@ -108,23 +126,25 @@
   function getPortsAndAddresses(sockfd, isRead)
   {
     var message = {};
-    var addrlen = Memory.alloc(4);
-    var addr = Memory.alloc(16);
     var src_dst = ["src", "dst"];
     for (var i = 0; i < src_dst.length; i++)
     {
-      Memory.writeU32(addrlen, 16);
       if ((src_dst[i] == "src") ^ isRead)
       {
-        getsockname(sockfd, addr, addrlen);
+          var sockAddr = Socket.localAddress(sockfd)
       }
       else
       {
-        getpeername(sockfd, addr, addrlen);
+          var sockAddr = Socket.peerAddress(sockfd)
       }
-      //IPv6时，获取IP地址会出问题，可考虑用frida的接口Socket来获取地址
-      message[src_dst[i] + "_port"] = ntohs(Memory.readU16(addr.add(2)));
-      message[src_dst[i] + "_addr"] = ntohl(Memory.readU32(addr.add(4)));
+      if(sockAddr == null){
+          // 网络超时or其他原因可能导致socket被关闭
+          message[src_dst[i] + "_port"] = 0
+          message[src_dst[i] + "_addr"] = 0
+      }else{
+          message[src_dst[i] + "_port"] = (sockAddr.port & 0xFFFF)
+          message[src_dst[i] + "_addr"] = ntohl(ipToNumber(sockAddr.ip.split(":").pop()))
+      }
     }
     return message;
   }
