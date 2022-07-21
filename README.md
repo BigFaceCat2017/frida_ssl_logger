@@ -17,3 +17,6 @@ for from https://github.com/google/ssl_logger
 ## Todo
 1. 解决IP的问题;
 2. ~~适配Windows~~;
+3. andriod高版本适配；
+4. iOS/macOS适配；
+5. 自实现ssl的适配；
