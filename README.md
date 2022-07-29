@@ -20,3 +20,6 @@ for from https://github.com/google/ssl_logger
 3. andriod高版本适配；
 4. iOS/macOS适配；
 5. 自实现ssl的适配；
+6. 适配socket的监控
+7. 新增对IP/dns的监控
+8. 新增对应用列表的显示

@@ -40,6 +40,7 @@ import socket
 import struct
 import time
 import sys
+import threading
 
 import frida
 
@@ -230,6 +231,17 @@ def ssl_log(process, pcap=None, verbose=False, isUsb=False, ssllib="", isSpawn=T
     signal.signal(signal.SIGTERM, stoplog)
     sys.stdin.read()
 
+def list_apps(isUsb=False):
+    if isUsb:
+        device = frida.get_usb_device()
+        for app in device.enumerate_applications():
+            print("{:<5} {:<30} {:<10}".format(app.pid, app.identifier, app.name))
+    else:
+        device = frida.get_local_device()
+        print(device)
+        for app in device.enumerate_processes():
+            print("{:<5} {:<10}".format(app.pid, app.name))
+
 if __name__ == "__main__":
     class ArgParser(argparse.ArgumentParser):
 
@@ -258,9 +270,10 @@ Examples:
     args = parser.add_argument_group("Arguments")
     args.add_argument("-pcap", '-p', metavar="<path>", required=False,
                       help="Name of PCAP file to write")
+    args.add_argument('-l', '--list', dest='list_app', action='store_true', help='List the installed apps')
     args.add_argument("-verbose","-v",  required=False, action="store_const", default=True,
                       const=True, help="Show verbose output")
-    args.add_argument("process", metavar="<process name | process id>",
+    args.add_argument("process",nargs="?", metavar="<process name | process id>",
                       help="Process whose SSL calls to log")
     args.add_argument("-ssl", default="", metavar="<lib>",
                       help="SSL library to hook")
@@ -272,4 +285,7 @@ Examples:
                       help="Time to wait for the process")
 
     parsed = parser.parse_args()
-    ssl_log(int(parsed.process) if parsed.process.isdigit() else parsed.process, parsed.pcap, parsed.verbose, isUsb=parsed.isUsb, isSpawn=parsed.isSpawn, ssllib=parsed.ssl, wait=parsed.wait)
+    if parsed.list_app:
+        list_apps(parsed.isUsb)
+    else:
+        ssl_log(int(parsed.process) if parsed.process.isdigit() else parsed.process, parsed.pcap, parsed.verbose, isUsb=parsed.isUsb, isSpawn=parsed.isSpawn, ssllib=parsed.ssl, wait=parsed.wait)
